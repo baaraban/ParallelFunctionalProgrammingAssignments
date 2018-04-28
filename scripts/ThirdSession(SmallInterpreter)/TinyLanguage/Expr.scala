@@ -1,5 +1,4 @@
 package TinyLanguage
-import scala.collection.mutable.Map
 
 sealed trait Expr {
   def isReduciable = this match{
@@ -9,28 +8,70 @@ sealed trait Expr {
     case _ => true
   }
 
+  def combine(inst: Expr, action: (Int, Int) => Boolean): Expr = this match {
+    case Number(n) => inst match {
+      case Number(m) => Bool(action(n, m))
+      case _ => Error(this)
+    }
+    case _ => Error(this)
+  }
+
+  def combine(inst: Expr, action: (Int, Int) => Int): Expr = this match {
+    case Number(n) => inst match {
+      case Number(m) => Number(action(m, n))
+      case _ => Error(this)
+    }
+    case _ => Error(this)
+  }
+
+
+  def eval(env: Map[String, Any]): Expr = this match{
+    case Var(name) => {
+      if(env.contains(name))
+        env(name) match {
+          case x: Int => Number(x)
+          case x: Boolean => Bool(x)
+          case x: Expr => x
+          case _ => Error(this)
+        }
+      else
+        Error(this)
+    }
+    case Sum(lOp, rOp) => lOp.eval(env).combine(rOp.eval(env), (x: Int, y: Int) => x + y)
+    case Prod(lOp, rOp) => lOp.eval(env).combine(rOp.eval(env), (x: Int, y: Int) => x * y)
+    case Less(lOp, rOp) => lOp.eval(env).combine(rOp.eval(env), (x: Int, y: Int) => x < y)
+    case IfElse(condition, lOp, rOp) => condition.eval(env) match {
+      case Bool(b) => if(b) lOp.eval(env) else rOp.eval(env)
+      case _ => Error(this)
+    }
+    case Error(failed) => failed
+    case _ => _
+  }
+
   def reduce(env: Map[String, Any]): Expr = this match{
-    case Var(name) => if (env.contains(name)) Number(env(name).asInstanceOf[Int]) else Error("No key")
-    case Sum(lOp, rOp) => if(lOp.isReduciable){
-      Sum(lOp.reduce(env), rOp)
-    } else if (rOp.isReduciable) {
-      Sum(lOp, rOp.reduce(env))
-    } else {
-      Number(this.eval(env).asInstanceOf[Int])
+    case Var(_) => this.eval(env)
+    case Sum(lOp, rOp) => {
+      if(lOp.isReduciable){
+        Prod(lOp.reduce(env), rOp)
+      } else if (rOp.isReduciable) {
+        Prod(lOp, rOp.reduce(env))
+      } else {
+        this.eval(env)
+      }
     }
     case Prod(lOp, rOp) => if(lOp.isReduciable){
       Prod(lOp.reduce(env), rOp)
     } else if (rOp.isReduciable) {
       Prod(lOp, rOp.reduce(env))
     } else {
-      Number(this.eval(env).asInstanceOf[Int])
+      this.eval(env)
     }
     case Less(lOp, rOp) => if(lOp.isReduciable){
       Less(lOp.reduce(env), rOp)
     } else if (rOp.isReduciable) {
       Less(lOp, rOp.reduce(env))
     } else {
-      Bool(this.eval(env).asInstanceOf[Boolean])
+      this.eval(env)
     }
     case IfElse(condition, lOp, rOp) => if(condition.isReduciable){
       IfElse(condition.reduce(env), lOp, rOp)
@@ -40,17 +81,6 @@ sealed trait Expr {
       rOp
     }
     case _ => this
-  }
-
-  def eval(env: Map[String, Any]): Any = this match{
-    case Number(n) => n
-    case Bool(b) => b
-    case Var(name) => if(env.contains(name)) env(name) else 0
-    case Sum(lOp, rOp) => lOp.eval(env).asInstanceOf[Int] + rOp.eval(env).asInstanceOf[Int]
-    case Prod(lOp, rOp) => lOp.eval(env).asInstanceOf[Int] * rOp.eval(env).asInstanceOf[Int]
-    case Less(lOp, rOp) => lOp.eval(env).asInstanceOf[Int] < rOp.eval(env).asInstanceOf[Int]
-    case IfElse(condition, lOp, rOp) => if(condition.eval(env).asInstanceOf[Boolean])  lOp.eval(env) else rOp.eval(env)
-    case Error(message) => message
   }
 
   def inside_show: String = this match{
@@ -66,9 +96,8 @@ sealed trait Expr {
     case Prod(lOp, rOp) => s"${lOp.inside_show}*${rOp.inside_show}"
     case Less(lOp, rOp) => s"${lOp.show} < ${rOp.show}"
     case IfElse(condition: Expr, lOp: Expr, rOp: Expr) => s"if (${condition.show}) then ${lOp.show} else ${rOp.show}"
-    case Error(message) => message
+    case Error(expr) => s"Error in (${expr.show})"
   }
-
 }
 
 case class Number(n: Int) extends Expr
@@ -78,4 +107,4 @@ case class Sum(lOp: Expr, rOp: Expr) extends Expr
 case class Prod(lOp: Expr, rOp: Expr) extends Expr
 case class Less(lOp: Expr, rOp: Expr) extends Expr
 case class IfElse(condition: Expr, lOp: Expr, rOp: Expr) extends Expr
-case class Error(message: String) extends Expr
+case class Error(failed: Expr) extends Expr
