@@ -1,6 +1,5 @@
 import TinyLanguage._
 
-import scala.collection.mutable.Map
 
 var expr = new TinyLanguage.Prod(TinyLanguage.Sum(TinyLanguage.Number(1),TinyLanguage.Number(2)),
   TinyLanguage.Sum(TinyLanguage.Number(4),TinyLanguage.Number(3)))
@@ -23,11 +22,6 @@ var sequenceOfStatements = Sequence(
 sequenceOfStatements.execute(env)
 someVar.eval(env)
 
-//
-//expr1.show
-//val reduced = new  Machine().run(expr1, env)
-//reduced
-//reduced.eval(env)
-
-
+expr.show
+expr.eval(env)
 

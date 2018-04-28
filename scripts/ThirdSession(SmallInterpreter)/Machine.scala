@@ -1,12 +1,17 @@
-import TinyLanguage.Expr
+import TinyLanguage.{Expr, Statement}
 
-import scala.collection.mutable.Map
 
 final class Machine {
-  def run(expr: Expr, env: Map[String, Any]) : Expr = {
+  def run(stat: Statement, env: Map[String, Any]): Map[String, Any] = {
+    println(env)
+    stat.execute(env)
+    println(env)
+  }
+
+  def reduce(expr: Expr, env: Map[String, Any]) : Expr = {
     println(expr.show)
     if(expr.isReduciable)
-      run(reductionStep(expr, env), env)
+      this.reduce(reductionStep(expr, env), env)
     else
       expr
   }
