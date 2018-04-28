@@ -1,54 +1,41 @@
 package TinyLanguage
 
-import scala.collection.mutable.Map
-
 sealed trait Statement {
-  def execute(env: Map[String, Any]): Expr = this match {
-    case DoNothing() => Bool(true)
+  val errorKey = "errors";
+  def handleError(env: Map[String, Any], er: Error) = env + (this.errorKey -> er)
+
+  def execute(env: Map[String, Any]): Map[String, Any] = this match {
+    case DoNothing() => env
     case Assign(x: Var, exp: Expr) => {
-      val result = exp.eval(env);
-      if (result.isInstanceOf[Error])
-        Error("Error of execution")
-      else {
-        env(x.name) = result;
-        Bool(true);
+      val target: Error = Error(exp);
+      exp.eval(env) match {
+        case Error(_) => this.handleError(env, target)
+        case _ => {
+          env + (x.name -> exp.eval(env))
+        }
       }
     }
     case Sequence(seq: List[Statement]) => {
       if (seq.isEmpty) {
-        Bool(true)
+        env
       } else {
-        val result = seq.head.execute(env)
-        if (result.isInstanceOf[Bool]) {
-          Sequence(seq.drop(1)).execute(env)
-        } else {
-          Error("Error of execution")
-        }
+        if(env.contains(this.errorKey)) env else Sequence(seq.drop(1)).execute(env)
       }
     }
 
     case WhileLoop(condition: Expr, job: Statement) => {
-      if (condition.isInstanceOf[Bool] || condition.isInstanceOf[Less]) {
-        if (condition.eval(env).asInstanceOf[Boolean]) {
-          job.execute(env)
-          this.execute(env)
-        } else {
-          Bool(true)
-        }
-      } else {
-        Error("Unvalid condition")
+      val conditionResult = condition.eval(env)
+      conditionResult match {
+        case Bool(b) => if(b) this.execute(job.execute(env)) else env
+        case _ => this.handleError(env, Error(condition))
       }
     }
 
     case IfElseStatement(condition: Expr, ifTrue: Statement, ifElse: Statement) => {
-      if (condition.isInstanceOf[Bool] || condition.isInstanceOf[Less]) {
-        if (condition.eval(env).asInstanceOf[Boolean]) {
-          ifTrue.execute(env)
-        } else {
-          ifElse.execute(env)
-        }
-      } else {
-        Error("Unvalid condition")
+      val conditionResult = condition.eval(env)
+      conditionResult match {
+        case Bool(b) => if(b) ifTrue.execute(env) else ifElse.execute(env)
+        case _ => this.handleError(env, Error(condition))
       }
     }
   }
