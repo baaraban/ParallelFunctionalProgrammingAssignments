@@ -8,7 +8,7 @@ sealed trait Expr {
     case _ => true
   }
 
-  def combine(inst: Expr, action: (Int, Int) => Boolean): Expr = this match {
+  def combineLogically(inst: Expr, action: (Int, Int) => Boolean): Expr = this match {
     case Number(n) => inst match {
       case Number(m) => Bool(action(n, m))
       case _ => Error(this)
@@ -16,7 +16,7 @@ sealed trait Expr {
     case _ => Error(this)
   }
 
-  def combine(inst: Expr, action: (Int, Int) => Int): Expr = this match {
+  def combineNumerically(inst: Expr, action: (Int, Int) => Int): Expr = this match {
     case Number(n) => inst match {
       case Number(m) => Number(action(m, n))
       case _ => Error(this)
@@ -37,15 +37,15 @@ sealed trait Expr {
       else
         Error(this)
     }
-    case Sum(lOp, rOp) => lOp.eval(env).combine(rOp.eval(env), (x: Int, y: Int) => x + y)
-    case Prod(lOp, rOp) => lOp.eval(env).combine(rOp.eval(env), (x: Int, y: Int) => x * y)
-    case Less(lOp, rOp) => lOp.eval(env).combine(rOp.eval(env), (x: Int, y: Int) => x < y)
+    case Sum(lOp, rOp) => lOp.eval(env).combineNumerically(rOp.eval(env), (x: Int, y: Int) => x + y)
+    case Prod(lOp, rOp) => lOp.eval(env).combineNumerically(rOp.eval(env), (x: Int, y: Int) => x * y)
+    case Less(lOp, rOp) => lOp.eval(env).combineLogically(rOp.eval(env), (x: Int, y: Int) => x < y)
     case IfElse(condition, lOp, rOp) => condition.eval(env) match {
       case Bool(b) => if(b) lOp.eval(env) else rOp.eval(env)
       case _ => Error(this)
     }
     case Error(failed) => failed
-    case _ => _
+    case _ => this
   }
 
   def reduce(env: Map[String, Any]): Expr = this match{
@@ -73,12 +73,15 @@ sealed trait Expr {
     } else {
       this.eval(env)
     }
-    case IfElse(condition, lOp, rOp) => if(condition.isReduciable){
-      IfElse(condition.reduce(env), lOp, rOp)
-    } else if(condition.eval(env) == true){
-      lOp
-    } else {
-      rOp
+    case IfElse(condition, lOp, rOp) => {
+      if(condition.isReduciable){
+        IfElse(condition.reduce(env), lOp, rOp)
+      } else {
+        condition.eval(env) match {
+          case Bool(b) => if(b) lOp.eval(env) else rOp.eval(env)
+          case _ => Error(condition)
+        }
+      }
     }
     case _ => this
   }
