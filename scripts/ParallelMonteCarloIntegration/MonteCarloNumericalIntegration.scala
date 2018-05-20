@@ -35,7 +35,7 @@ object MonteCarloNumericalIntegration {
 
   def integrateMonteCarlo(func: Double => Double)
                          (interval: (Double, Double))
-                         (numberOfRandomPoints: Double = 1000000): Double = {
+                         (numberOfRandomPoints: Double = 100000): Double = {
     val randomX = new Random
     def iter(generated: Int, sum: Double): Double ={
       def randomRectAreaCalc(a: Double, b: Double) = func(randomX.nextDouble()*(b - a) + a)

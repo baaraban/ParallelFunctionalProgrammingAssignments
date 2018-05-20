@@ -1,6 +1,3 @@
-package ua.edu.ucu.cs
-
-
 package object parallel {
 
   import java.util.concurrent._
@@ -31,10 +28,10 @@ package object parallel {
     (left, right.join())
   }
 
-  def parallel[A](expressions: => List[A]): List[A] = {
-    var tasks = List[];
-    expressions.foreach{ tasks.add(task{ _ }) }
-  }
+//  def parallel[A](expressions: => List[A]): List[A] = {
+//    var tasks = List[];
+//    expressions.foreach{ tasks.add(task{ _ }) }
+//  }
 
   def parallel[A, B, C, D](taskA: => A, taskB: => B, taskC: => C, taskD: => D): (A, B, C, D) = {
     val ta = task { taskA }
